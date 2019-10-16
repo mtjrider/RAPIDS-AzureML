@@ -14,7 +14,7 @@ from azureml.core import Workspace, Experiment, Environment
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.compute import AmlCompute, ComputeTarget
 from azureml.data.data_reference import DataReference
-from azureml.core.runconfig import RunConfiguration, MpiConfiguration
+from azureml.core.runconfig import RunConfiguration
 from azureml.core import ScriptRunConfig
 from azureml.train.estimator import Estimator
 from azureml.exceptions import ComputeTargetException
@@ -73,6 +73,7 @@ if __name__ == '__main__':
   parser.add_argument("--local_notebook_port", default="8888")
   parser.add_argument("--local_dashboard_port", default="8787")
 
+  parser.add_argument("--download_nyctaxi_data", default=False)
   parser.add_argument("--nyctaxi_years", default="2015")
   parser.add_argument("--nyctaxi_src_path", default=os.getcwd())
   parser.add_argument("--nyctaxi_dst_path", default="data")
@@ -100,17 +101,18 @@ if __name__ == '__main__':
     cluster = ComputeTarget(workspace=workspace,
                             name=args.cluster_name)
     print("Found pre-existing compute target")
-
   except ComputeTargetException:
     print("No pre-existing compute target found ...")
     print(" ... creating a new cluster ...")
+    if os.path.exists(os.path.expanduser(args.admin_user_ssh_key)):
+      ssh_key = open(os.path.expanduser(args.admin_user_ssh_key)).read().strip()
     provisioning_config = AmlCompute.provisioning_configuration(vm_size=args.vm_size,
                                                                 min_nodes=args.min_nodes,
                                                                 max_nodes=args.max_nodes,
                                                                 idle_seconds_before_scaledown=120,
                                                                 admin_username=args.admin_username,
                                                                 admin_user_password=args.admin_user_password,
-                                                                admin_user_ssh_key=open(os.path.expanduser(args.admin_user_ssh_key)).read().strip())
+                                                                admin_user_ssh_key=ssh_key)
     cluster = ComputeTarget.create(workspace, args.cluster_name, provisioning_config)
     print(" ... waiting for cluster ...")
     cluster.wait_for_completion(show_output=True)
@@ -125,13 +127,11 @@ if __name__ == '__main__':
   else:
     years = [args.nyctaxi_years]
 
-  download_nyctaxi_data(years, args.nyctaxi_src_path)
-  upload_nyctaxi_data(workspace, datastore, os.path.join(args.nyctaxi_src_path, "nyctaxi"), os.path.join(args.nyctaxi_dst_path, "nyctaxi"))
+  if args.download_nyctaxi_data:
+    download_nyctaxi_data(years, args.nyctaxi_src_path)
+    upload_nyctaxi_data(workspace, datastore, os.path.join(args.nyctaxi_src_path, "nyctaxi"), os.path.join(args.nyctaxi_dst_path, "nyctaxi"))
 
-  print("Configuring MPI ...")
   n_gpus_per_node = azure_gpu_vm_sizes[args.vm_size]
-  mpi_config = MpiConfiguration()
-  mpi_config.process_count_per_node = n_gpus_per_node
 
   print("Declaring estimator ...")
   estimator = Estimator(source_directory='./rapids',
@@ -139,10 +139,10 @@ if __name__ == '__main__':
                         entry_script='init_dask.py',
                         script_params={
                           '--datastore'        : workspace.get_default_datastore(),
+                          '--node_list'        : str(cluster.list_nodes()),
                           '--n_gpus_per_node'  : str(n_gpus_per_node)
                         },
                         node_count=int(args.node_count),
-                        distributed_training=mpi_config,
                         use_gpu=True,
                         conda_dependencies_file='rapids-0.9.yml')
 
@@ -174,22 +174,30 @@ if __name__ == '__main__':
                                            dashboard_port=args.local_dashboard_port,
                                            headnode=headnode,
                                            uname=args.admin_username,
-                                           ip=cluster.list_nodes()[0]['ipAddress'],
+                                           ip=cluster.list_nodes()[0]['publicIpAddress'],
                                            port=cluster.list_nodes()[0]['port'])
   
   print(" ... executing the following command ...")
-  print(" ... ", cmd)
+  print(" ...", cmd, "...")
   
-  portforward_out_log_name = "portforward_out_log.txt"
-  print(" ... sending verbose port-fowarding output to {} ...".format(portforward_out_log_name))
-  print(" ... to access the jupyter notebook environment, point your web-browser to {}:8888".format(socket.gethostbyname(socket.gethostname())))
-  portforward_out_log = open("portforward_out_log.txt", 'w')
-  portforward = subprocess.Popen(cmd.split(), universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+  portforward_log_name = "portforward_log.txt"
+  try:
+    ssh_key
+  except:
+    print("... WARNING ... could not find a valid SSH key at {path} ...".format(path=os.path.expanduser(args.admin_user_ssh_key)))
+    print("... WARNING ... when prompted for a password, enter `{password}` ...".format(password=args.admin_user_password))
+  print(" ... sending verbose port-fowarding output to {} ...".format(portforward_log_name))
+  print(" ... navigate to the Microsoft Azure Portal where the Experiment is running ...")
+  print(" ... when Tracked Metrics include both a `jupyter` and `jupyter-token` entry ...")
+  print(" ... the lab environment will be accessible on this machine ...")
+  print(" ... to access the jupyter lab environment, point your web-browser to {}:8888".format(socket.gethostbyname(socket.gethostname())))
+  portforward_log = open("portforward_out_log.txt", 'w')
+  portforward_proc = subprocess.Popen(cmd.split(), universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
   while True:
-    portforward_out = portforward.stdout.readline()
-    if portforward_out == '' and portforward.poll() is not None:
-      portforward_out_log.close()
+    portforward_out = portforward_proc.stdout.readline()
+    if portforward_out == '' and portforward_proc.poll() is not None:
+      portforward_log.close()
       break
     elif portforward_out:
-      portforward_out_log.write(portforward_out)
-      portforward_out_log.flush()
+      portforward_log.write(portforward_out)
+      portforward_log.flush()
