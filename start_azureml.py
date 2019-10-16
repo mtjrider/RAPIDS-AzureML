@@ -12,14 +12,10 @@ import threading
 import subprocess
 
 from azureml.core import Workspace, Experiment, Environment
-from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.compute import AmlCompute, ComputeTarget
-from azureml.data.data_reference import DataReference
-from azureml.core.runconfig import RunConfiguration
-from azureml.core import ScriptRunConfig
+from azureml.data.datapath import DataPath
 from azureml.train.estimator import Estimator
 from azureml.exceptions import ComputeTargetException
-from azureml.widgets import RunDetails
 
 from nyctaxi_data import download_nyctaxi_data
 from nyctaxi_data import upload_nyctaxi_data
@@ -100,6 +96,8 @@ if __name__ == '__main__':
                         resource_group=resource_group)
 
   try:
+    if os.path.exists(os.path.expanduser(args.admin_user_ssh_key)):
+      ssh_key = open(os.path.expanduser(args.admin_user_ssh_key)).read().strip()
     cluster = ComputeTarget(workspace=workspace,
                             name=args.cluster_name)
     print("Found pre-existing compute target")
@@ -119,7 +117,7 @@ if __name__ == '__main__':
     print(" ... waiting for cluster ...")
     cluster.wait_for_completion(show_output=True)
 
-  workspace = Workspace.from_config()
+  workspace = Workspace.from_config(path=args.config)
   datastore = workspace.get_default_datastore()
 
   if ','in args.nyctaxi_years:
@@ -141,7 +139,7 @@ if __name__ == '__main__':
                         entry_script='init_dask.py',
                         script_params={
                           "--datastore"        : workspace.get_default_datastore(),
-                          "--node_list"        : str(cluster.list_nodes()),
+                          "--node_list"        : cluster.list_nodes(),
                           "--n_gpus_per_node"  : str(n_gpus_per_node),
                           "--jupyter_token"    : str(args.jupyter_token)
                         },
@@ -187,18 +185,18 @@ if __name__ == '__main__':
   try:
     ssh_key
   except:
-    print("... WARNING ... could not find a valid SSH key at {path} ...".format(path=os.path.expanduser(args.admin_user_ssh_key)))
-    print("... WARNING ... when prompted for a password, enter `{password}` ...".format(password=args.admin_user_password))
+    print(" ... WARNING ... could not find a valid SSH key at {path} ...".format(path=os.path.expanduser(args.admin_user_ssh_key)))
+    print(" ... WARNING ... when prompted for a password, enter `{password}` ...".format(password=args.admin_user_password))
   print(" ... sending verbose port-fowarding output to {} ...".format(portforward_log_name))
   print(" ... navigate to the Microsoft Azure Portal where the Experiment is running ...")
   print(" ... when Tracked Metrics include both a `jupyter` and `jupyter-token` entry ...")
   print(" ... the lab environment will be accessible on this machine ...")
-  print(" ... INFO ... to access the jupyter lab environment, point your web-browser to {ip}:{port}/?token={token}".format(ip=socket.gethostbyname(socket.gethostname()),
+  print(" ... INFO ... to access the jupyter lab environment, point your web-browser to {ip}:{port}/?token={token} ...".format(ip=socket.gethostbyname(socket.gethostname()),
                                                                                                                            port=args.local_notebook_port,
                                                                                                                            token=args.jupyter_token))
-  print("... INFO ... this is the path to your datastore: {datastore}".format(datastore=workspace.get_default_datastore()))
-  print("... cancelling this script by using Control-C will not decommission the compute resources ...")
-  print("... to decommission compute resources, navigate to the Microsoft Azure Portal and (1) cancel the run, (2) delete the compute asset")
+  print(" ... INFO ... this is the path to your datastore: {datastore} ...".format(datastore=DataPath(datastore=workspace.get_default_datastore())))
+  print(" ... cancelling this script by using Control-C will not decommission the compute resources ...")
+  print(" ... to decommission compute resources, navigate to the Microsoft Azure Portal and (1) cancel the run, (2) delete the compute asset")
   portforward_log = open("portforward_out_log.txt", 'w')
   portforward_proc = subprocess.Popen(cmd.split(), universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
   while True:

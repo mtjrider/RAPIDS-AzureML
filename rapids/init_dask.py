@@ -33,7 +33,10 @@ if __name__ == '__main__':
   n_gpus_per_node = eval(args.n_gpus_per_node)
   if not isinstance(node_list, list):
     node_list = [node_list]
-  
+
+  print("node list:", node_list)
+  print("number of GPUs per node:", n_gpus_per_node)
+
   rank = -1
   ip = socket.gethostbyname(socket.gethostname())
   for node, node_info in enumerate(node_list):
@@ -41,6 +44,8 @@ if __name__ == '__main__':
     if ip == node_info["privateIpAddress"]:
       rank = node
       break
+
+  assert(-1 < rank), "node was unable to establish a valid rank"
 
   print("- my rank is ", rank)
   print("- my ip is ", ip)
@@ -56,25 +61,9 @@ if __name__ == '__main__':
   if rank == 0:
     Run.get_context().log("headnode", ip)
     Run.get_context().log("cluster",
-                          "scheduler: {scheduler}, dashbaord: {dashboard}".format(scheduler=cluster["scheduler"],
+                          "scheduler: {scheduler}, dashboard: {dashboard}".format(scheduler=cluster["scheduler"],
                                                                                   dashboard=cluster["dashboard"]))
     Run.get_context().log("datastore", args.datastore)
-
-    cmd = "jupyter labextension install dask-labextension"
-    jupyter_log = open("jupyter_log.txt", "w")
-    jupyter_proc = subprocess.Popen(cmd.split(), universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-
-    jupyter_flush = threading.Thread(target=flush, args=(jupyter_proc, jupyter_log))
-    jupyter_flush.start()
-    jupyter_flush.join()
-
-    cmd = "jupyter labextension install jupyterlab-nvdashboard"
-    jupyter_log = open("jupyter_log.txt", "a")
-    jupyter_proc = subprocess.Popen(cmd.split(), universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-
-    jupyter_flush = threading.Thread(target=flush, args=(jupyter_proc, jupyter_log))
-    jupyter_flush.start()
-    jupyter_flush.join()
 
     cmd = ("jupyter lab --ip 0.0.0.0 --port 8888" + \
                       " --NotebookApp.token={token}" + \
