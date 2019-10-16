@@ -5,6 +5,7 @@ import threading
 import subprocess
 import socket
 
+from mpi4py import MPI
 from azureml.core import Run
 from notebook.notebookapp import list_running_servers
 
@@ -21,43 +22,37 @@ def flush(proc, proc_log):
 
 
 if __name__ == '__main__':
+  
+  comm = MPI.COMM_WORLD
+  rank = comm.Get_rank()
+  ip = socket.gethostbyname(socket.gethostname())
 
   parser = argparse.ArgumentParser()
   parser.add_argument("--datastore")
-  parser.add_argument("--node_list")
   parser.add_argument("--n_gpus_per_node")
   parser.add_argument("--jupyter_token")
   args = parser.parse_args()
 
-  node_list = eval(args.node_list)
   n_gpus_per_node = eval(args.n_gpus_per_node)
-  if not isinstance(node_list, list):
-    node_list = [node_list]
 
-  print("node list:", node_list)
   print("number of GPUs per node:", n_gpus_per_node)
-
-  rank = -1
-  ip = socket.gethostbyname(socket.gethostname())
-  for node, node_info in enumerate(node_list):
-    print("node rank:", node, "node info:", node_info)
-    if ip == node_info["privateIpAddress"]:
-      rank = node
-      break
-
-  assert(-1 < rank), "node was unable to establish a valid rank"
-
   print("- my rank is ", rank)
   print("- my ip is ", ip)
   
-  master = node_list[0]["privateIpAddress"]
-  cluster = {
-    "scheduler"  : master + ":8786",
-    "dashboard"  : master + ":8787"
-  }
+  if rank == 0:
+    cluster = {
+      "scheduler"  : ip + ":8786",
+      "dashboard"  : ip + ":8787"
+    }
+    scheduler = cluster["scheduler"]
+    dashboard = cluster["dashboard"]
+  else:
+    cluster = None
+  
+  cluster = comm.bcast(cluster, root=0)
   scheduler = cluster["scheduler"]
   dashboard = cluster["dashboard"]
-
+  
   if rank == 0:
     Run.get_context().log("headnode", ip)
     Run.get_context().log("cluster",
@@ -104,3 +99,4 @@ if __name__ == '__main__':
     worker_proc = subprocess.Popen(cmd.split(), universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     
     flush(worker_proc, worker_log)
+
