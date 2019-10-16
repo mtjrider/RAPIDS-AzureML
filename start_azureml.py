@@ -13,7 +13,6 @@ import subprocess
 
 from azureml.core import Workspace, Experiment, Environment
 from azureml.core.compute import AmlCompute, ComputeTarget
-from azureml.data.datapath import DataPath
 from azureml.train.estimator import Estimator
 from azureml.exceptions import ComputeTargetException
 
@@ -95,7 +94,7 @@ if __name__ == '__main__':
   workspace = Workspace(workspace_name=workspace_name,
                         subscription_id=subscription_id,
                         resource_group=resource_group)
-
+  
   try:
   
     if os.path.exists(os.path.expanduser(args.admin_user_ssh_key)):
@@ -208,7 +207,7 @@ if __name__ == '__main__':
   print(" ... INFO ... to access the jupyter lab environment, point your web-browser to {ip}:{port}/?token={token} ...".format(ip=socket.gethostbyname(socket.gethostname()),
                                                                                                                            port=args.local_notebook_port,
                                                                                                                            token=args.jupyter_token))
-  print(" ... INFO ... this is the path to your datastore: {datastore} ...".format(datastore=DataPath(datastore=workspace.get_default_datastore())))
+  print(" ... INFO ... to acquire the path to your default datastore, inspect the Tracked Metrics from the Microsoft Azure Portal ...")
   print(" ... cancelling this script by using Control-C will not decommission the compute resources ...")
   print(" ... to decommission compute resources, navigate to the Microsoft Azure Portal and (1) cancel the run, (2) delete the compute asset")
   
