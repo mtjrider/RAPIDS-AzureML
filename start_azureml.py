@@ -52,6 +52,7 @@ def spinner():
     if done:
       return
 
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
 
@@ -199,6 +200,7 @@ if __name__ == '__main__':
   print(" ... to decommission compute resources, navigate to the Microsoft Azure Portal and (1) cancel the run, (2) delete the compute asset")
   portforward_log = open("portforward_out_log.txt", 'w')
   portforward_proc = subprocess.Popen(cmd.split(), universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
   while True:
     portforward_out = portforward_proc.stdout.readline()
     if portforward_out == '' and portforward_proc.poll() is not None:
