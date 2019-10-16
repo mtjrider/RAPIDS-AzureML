@@ -193,9 +193,9 @@ if __name__ == '__main__':
   print(" ... navigate to the Microsoft Azure Portal where the Experiment is running ...")
   print(" ... when Tracked Metrics include both a `jupyter` and `jupyter-token` entry ...")
   print(" ... the lab environment will be accessible on this machine ...")
-  print(" ... INFO ... to access the jupyter lab environment, point your web-browser to {ip}:{port}/?token={token}".format(ip=socket.gethostbyname(socket.gethostname())),
+  print(" ... INFO ... to access the jupyter lab environment, point your web-browser to {ip}:{port}/?token={token}".format(ip=socket.gethostbyname(socket.gethostname()),
                                                                                                                            port=args.local_notebook_port,
-                                                                                                                           token=args.jupyter_token)
+                                                                                                                           token=args.jupyter_token))
   print("... INFO ... this is the path to your datastore: {datastore}".format(datastore=workspace.get_default_datastore()))
   print("... cancelling this script by using Control-C will not decommission the compute resources ...")
   print("... to decommission compute resources, navigate to the Microsoft Azure Portal and (1) cancel the run, (2) delete the compute asset")
