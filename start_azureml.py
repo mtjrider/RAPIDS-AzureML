@@ -207,8 +207,10 @@ if __name__ == '__main__':
   print(" ... when Tracked Metrics include both a `jupyter` and `jupyter-token` entry ...")
   print(" ... the lab environment will be accessible on this machine ...")
   print(" ... INFO ... to access the jupyter lab environment, point your web-browser to {ip}:{port}/?token={token} ...".format(ip=socket.gethostbyname(socket.gethostname()),
-                                                                                                                           port=args.local_notebook_port,
-                                                                                                                           token=args.jupyter_token))
+                                                                                                                               port=args.local_notebook_port,
+                                                                                                                               token=args.jupyter_token))
+  print(" ... INFO ... to view the Dask Dashboard, point your web-browser to {ip}:{port} ...".format(ip=socket.gethostbyname(socket.gethostname()),
+                                                                                                     port=args.local_dashboard_port))
   print(" ... INFO ... to acquire the path to your default datastore, inspect the Tracked Metrics from the Microsoft Azure Portal ...")
   print(" ... cancelling this script by using Control-C will not decommission the compute resources ...")
   print(" ... to decommission compute resources, navigate to the Microsoft Azure Portal and (1) cancel the run, (2) delete the compute asset")
