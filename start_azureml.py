@@ -97,14 +97,20 @@ if __name__ == '__main__':
                         resource_group=resource_group)
 
   try:
+  
     if os.path.exists(os.path.expanduser(args.admin_user_ssh_key)):
       ssh_key = open(os.path.expanduser(args.admin_user_ssh_key)).read().strip()
+  
     cluster = ComputeTarget(workspace=workspace,
                             name=args.cluster_name)
+  
     print("Found pre-existing compute target")
+  
   except ComputeTargetException:
+  
     print("No pre-existing compute target found ...")
     print(" ... creating a new cluster ...")
+  
     if os.path.exists(os.path.expanduser(args.admin_user_ssh_key)):
       ssh_key = open(os.path.expanduser(args.admin_user_ssh_key)).read().strip()
     provisioning_config = AmlCompute.provisioning_configuration(vm_size=args.vm_size,
@@ -115,7 +121,9 @@ if __name__ == '__main__':
                                                                 admin_user_password=args.admin_user_password,
                                                                 admin_user_ssh_key=ssh_key)
     cluster = ComputeTarget.create(workspace, args.cluster_name, provisioning_config)
+  
     print(" ... waiting for cluster ...")
+  
     cluster.wait_for_completion(show_output=True)
 
   workspace = Workspace.from_config(path=args.config)
@@ -135,12 +143,13 @@ if __name__ == '__main__':
   n_gpus_per_node = azure_gpu_vm_sizes[args.vm_size]
 
   print("Declaring estimator ...")
+  
   estimator = Estimator(source_directory='./rapids',
                         compute_target=cluster,
                         entry_script='init_dask.py',
                         script_params={
                           "--datastore"        : workspace.get_default_datastore(),
-                          "--node_list"        : cluster.list_nodes(),
+                          "--node_list"        : str(cluster.list_nodes().copy()),
                           "--n_gpus_per_node"  : str(n_gpus_per_node),
                           "--jupyter_token"    : str(args.jupyter_token)
                         },
@@ -149,6 +158,7 @@ if __name__ == '__main__':
                         conda_dependencies_file='rapids-0.9.yml')
 
   print("Starting experiment run ...")
+  
   experiment = Experiment(workspace, args.experiment_name).submit(estimator)
   
   print(" ... waiting for headnode ...")
@@ -163,10 +173,12 @@ if __name__ == '__main__':
   spinning_thread.join()
 
   headnode = experiment.get_metrics()["headnode"]
+  
   print(" ... headnode ready ...")
   print(" ... headnode has ip: ", headnode)
 
   print("Setting up port-forwarding for jupyter notebook environment ...")
+  
   cmd = ("ssh -vvv -o StrictHostKeyChecking=no -N" + \
          " -i {ssh_key}" + \
          " -L 0.0.0.0:{notebook_port}:{headnode}:8888" + \
@@ -188,6 +200,7 @@ if __name__ == '__main__':
   except:
     print(" ... WARNING ... could not find a valid SSH key at {path} ...".format(path=os.path.expanduser(args.admin_user_ssh_key)))
     print(" ... WARNING ... when prompted for a password, enter `{password}` ...".format(password=args.admin_user_password))
+  
   print(" ... sending verbose port-fowarding output to {} ...".format(portforward_log_name))
   print(" ... navigate to the Microsoft Azure Portal where the Experiment is running ...")
   print(" ... when Tracked Metrics include both a `jupyter` and `jupyter-token` entry ...")
@@ -198,6 +211,7 @@ if __name__ == '__main__':
   print(" ... INFO ... this is the path to your datastore: {datastore} ...".format(datastore=DataPath(datastore=workspace.get_default_datastore())))
   print(" ... cancelling this script by using Control-C will not decommission the compute resources ...")
   print(" ... to decommission compute resources, navigate to the Microsoft Azure Portal and (1) cancel the run, (2) delete the compute asset")
+  
   portforward_log = open("portforward_out_log.txt", 'w')
   portforward_proc = subprocess.Popen(cmd.split(), universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
