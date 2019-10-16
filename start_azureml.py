@@ -2,6 +2,7 @@
 
 import os
 import sys
+import copy
 import uuid
 import json
 import time
@@ -139,6 +140,7 @@ if __name__ == '__main__':
     download_nyctaxi_data(years, args.nyctaxi_src_path)
     upload_nyctaxi_data(workspace, datastore, os.path.join(args.nyctaxi_src_path, "nyctaxi"), os.path.join(args.nyctaxi_dst_path, "nyctaxi"))
 
+  node_list = copy.deepcopy(cluster.list_nodes())
   n_gpus_per_node = azure_gpu_vm_sizes[args.vm_size]
 
   print("Declaring estimator ...")
@@ -148,7 +150,7 @@ if __name__ == '__main__':
                         entry_script='init_dask.py',
                         script_params={
                           "--datastore"        : workspace.get_default_datastore(),
-                          "--node_list"        : str(cluster.list_nodes().copy()),
+                          "--node_list"        : str(node_list),
                           "--n_gpus_per_node"  : str(n_gpus_per_node),
                           "--jupyter_token"    : str(args.jupyter_token)
                         },
