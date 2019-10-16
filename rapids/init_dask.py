@@ -26,6 +26,7 @@ if __name__ == '__main__':
   parser.add_argument("--datastore")
   parser.add_argument("--node_list")
   parser.add_argument("--n_gpus_per_node")
+  parser.add_argument("--jupyter_token")
   args = parser.parse_args()
 
   node_list = eval(args.node_list)
@@ -40,9 +41,6 @@ if __name__ == '__main__':
     if ip == node_info["privateIpAddress"]:
       rank = node
       break
-
-  time.sleep(5)
-  assert (-1 < rank), "not all node ranks are valid"
 
   print("- my rank is ", rank)
   print("- my ip is ", ip)
@@ -78,7 +76,9 @@ if __name__ == '__main__':
     jupyter_flush.start()
     jupyter_flush.join()
 
-    cmd = "jupyter lab --ip 0.0.0.0 --port 8888 --allow-root --no-browser"
+    cmd = ("jupyter lab --ip 0.0.0.0 --port 8888" + \
+                      " --NotebookApp.token={token}" + \
+                      " --allow-root --no-browser").format(token=args.jupyter_token)
     jupyter_log = open("jupyter_log.txt", "a")
     jupyter_proc = subprocess.Popen(cmd.split(), universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 

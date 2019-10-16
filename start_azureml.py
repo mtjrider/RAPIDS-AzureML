@@ -2,6 +2,7 @@
 
 import os
 import sys
+import uuid
 import json
 import time
 import socket
@@ -70,6 +71,7 @@ if __name__ == '__main__':
   parser.add_argument("--admin_user_ssh_key", default="~/.ssh/id_rsa.pub")
   parser.add_argument("--ssh_id", default="~/.ssh/id_rsa")
 
+  parser.add_argument("--jupyter_token", default=uuid.uuid1().hex)
   parser.add_argument("--local_notebook_port", default="8888")
   parser.add_argument("--local_dashboard_port", default="8787")
 
@@ -138,9 +140,10 @@ if __name__ == '__main__':
                         compute_target=cluster,
                         entry_script='init_dask.py',
                         script_params={
-                          '--datastore'        : workspace.get_default_datastore(),
-                          '--node_list'        : str(cluster.list_nodes()),
-                          '--n_gpus_per_node'  : str(n_gpus_per_node)
+                          "--datastore"        : workspace.get_default_datastore(),
+                          "--node_list"        : str(cluster.list_nodes()),
+                          "--n_gpus_per_node"  : str(n_gpus_per_node),
+                          "--jupyter_token"    : str(args.jupyter_token)
                         },
                         node_count=int(args.node_count),
                         use_gpu=True,
@@ -190,7 +193,12 @@ if __name__ == '__main__':
   print(" ... navigate to the Microsoft Azure Portal where the Experiment is running ...")
   print(" ... when Tracked Metrics include both a `jupyter` and `jupyter-token` entry ...")
   print(" ... the lab environment will be accessible on this machine ...")
-  print(" ... to access the jupyter lab environment, point your web-browser to {}:8888".format(socket.gethostbyname(socket.gethostname())))
+  print(" ... INFO ... to access the jupyter lab environment, point your web-browser to {ip}:{port}/?token={token}".format(ip=socket.gethostbyname(socket.gethostname())),
+                                                                                                                  port=args.local_notebook_port,
+                                                                                                                  token=args.jupyter_token)
+  print("... INFO ... this is the path to your datastore: {datastore}".format(datastore=workspace.get_default_datastore()))
+  print("... cancelling this script by using Control-C will not decommission the compute resources ...")
+  print("... to decommission compute resources, navigate to the Microsoft Azure Portal and (1) cancel the run, (2) delete the compute asset")
   portforward_log = open("portforward_out_log.txt", 'w')
   portforward_proc = subprocess.Popen(cmd.split(), universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
   while True:
